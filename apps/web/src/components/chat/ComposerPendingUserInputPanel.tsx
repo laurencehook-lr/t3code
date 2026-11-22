@@ -5,9 +5,13 @@ import { memo, use, useEffect, useEffectEvent, useRef, useState } from "react";
 import { BackgroundThreadContext } from "./backgroundThread";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { type PendingUserInput } from "../../session-logic";
-import type { PendingUserInputDraftAnswer } from "@t3tools/client-runtime/state/pending-user-input";
+import {
+  pendingUserInputAcceptsNote,
+  type PendingUserInputDraftAnswer,
+} from "@t3tools/client-runtime/state/pending-user-input";
 import { derivePendingUserInputProgress } from "../../pendingUserInput";
 import { CheckboxMark } from "../ui/checkbox";
+import { Input } from "../ui/input";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
 import { Kbd } from "../ui/kbd";
 import { cn } from "~/lib/utils";
@@ -24,6 +28,7 @@ interface PendingUserInputPanelProps {
   answers: Record<string, PendingUserInputDraftAnswer>;
   questionIndex: number;
   onToggleOption: (questionId: string, optionValue: string) => void;
+  onChangeNote: (questionId: string, note: string) => void;
   onAdvance: () => void;
   onDismiss: (requestId: RuntimeRequestId) => void;
 }
@@ -37,6 +42,7 @@ export const ComposerPendingUserInputPanel = memo(function ComposerPendingUserIn
   answers,
   questionIndex,
   onToggleOption,
+  onChangeNote,
   onAdvance,
   onDismiss,
 }: PendingUserInputPanelProps) {
@@ -55,6 +61,7 @@ export const ComposerPendingUserInputPanel = memo(function ComposerPendingUserIn
       answers={answers}
       questionIndex={questionIndex}
       onToggleOption={onToggleOption}
+      onChangeNote={onChangeNote}
       onAdvance={onAdvance}
       onDismiss={onDismiss}
     />
@@ -70,6 +77,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
   answers,
   questionIndex,
   onToggleOption,
+  onChangeNote,
   onAdvance,
   onDismiss,
 }: {
@@ -81,6 +89,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
   answers: Record<string, PendingUserInputDraftAnswer>;
   questionIndex: number;
   onToggleOption: (questionId: string, optionValue: string) => void;
+  onChangeNote: (questionId: string, note: string) => void;
   onAdvance: () => void;
   onDismiss: (requestId: RuntimeRequestId) => void;
 }) {
@@ -344,6 +353,31 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
                 );
               })}
             </div>
+            {pendingUserInputAcceptsNote(activeQuestion) && !customAnswerActive ? (
+              <div className="mt-1 mb-1.5">
+                <Input
+                  size="compact"
+                  nativeInput
+                  value={progress.activeDraft?.note ?? ""}
+                  disabled={responseDisabled}
+                  aria-label={gt("Note for this answer")}
+                  placeholder={
+                    prompt.questions.length > 1 && progress.isLastQuestion
+                      ? gt("Add a note for this answer or the whole card (optional)")
+                      : gt("Add a note or caveat (optional)")
+                  }
+                  data-pending-user-input-note
+                  onChange={(event) => onChangeNote(activeQuestion.id, event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
+                      return;
+                    }
+                    event.preventDefault();
+                    advance();
+                  }}
+                />
+              </div>
+            ) : null}
           </ComposerBanner.Body>
         </ComposerBanner.Scroll>
       </CollapsiblePanel>

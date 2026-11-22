@@ -108,6 +108,7 @@ function setup(questionMarkdown: string) {
         respondingUserInputId={null}
         onSelectOption={() => {}}
         onChangeCustomAnswer={() => {}}
+        onChangeNote={() => {}}
         onSubmit={async () => {}}
         onDismiss={async () => {}}
       />,

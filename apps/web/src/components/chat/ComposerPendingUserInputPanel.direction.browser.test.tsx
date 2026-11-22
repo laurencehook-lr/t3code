@@ -36,6 +36,7 @@ const renderPanel = (questions: Question[], questionIndex = 0) =>
       answers={{}}
       questionIndex={questionIndex}
       onToggleOption={() => {}}
+      onChangeNote={() => {}}
       onAdvance={() => {}}
       onDismiss={() => {}}
     />,
