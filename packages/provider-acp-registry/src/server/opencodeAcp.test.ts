@@ -117,6 +117,17 @@ describe("OpenCode ACP question form", () => {
     });
   });
 
+  it("keeps a note with the selected option", () => {
+    const form = extractOpenCodeElicitationForm(
+      request({ q0: colorQuestion, q0_custom: colorCompanion }),
+    );
+
+    expect(form?.respond({ q0: "blue\n\nNote: only on weekdays" })).toEqual({
+      action: "accept",
+      content: { q0: "blue", q0_custom: "Blue\n\nNote: only on weekdays" },
+    });
+  });
+
   it("cancels empty or multi-value answers to a single-select question", () => {
     const form = extractOpenCodeElicitationForm(
       request({ q0: colorQuestion, q0_custom: colorCompanion }),

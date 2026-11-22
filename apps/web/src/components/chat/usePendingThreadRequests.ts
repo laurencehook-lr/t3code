@@ -37,6 +37,7 @@ import { composerDraftContentChanged } from "./composerSend.logic";
 import {
   buildPendingUserInputAnswers,
   setPendingUserInputCustomAnswer,
+  setPendingUserInputNote,
   togglePendingUserInputOptionSelection,
   type PendingUserInputDraftAnswer,
 } from "@t3tools/client-runtime/state/pending-user-input";
@@ -632,6 +633,26 @@ export function usePendingThreadRequests(input: {
     setPendingUserInputAnswersByRequestId,
   });
 
+  const onChangeActivePendingUserInputNote = (questionId: string, note: string) => {
+    if (!activePendingUserInput) return;
+    const question = activePendingUserInput.questions.find((entry) => entry.id === questionId);
+    if (!question) return;
+    setPendingUserInputAnswersByRequestId((existing) => ({
+      ...existing,
+      [activePendingRequestKey]: {
+        ...existing[activePendingRequestKey],
+        [questionId]: setPendingUserInputNote(
+          question,
+          existing[activePendingRequestKey]?.[questionId],
+          note,
+        ),
+      },
+    }));
+  };
+  const onChangeActivePendingUserInputNoteStable = useStableCallback(
+    onChangeActivePendingUserInputNote,
+  );
+
   const onAdvanceActivePendingUserInput = () => {
     if (!activePendingUserInput || activePendingUserInput.responseCapability === "not_resumable") {
       return;
@@ -672,6 +693,7 @@ export function usePendingThreadRequests(input: {
     onDismissUserInput: onDismissUserInputStable,
     onSelectActivePendingUserInputOption: onSelectActivePendingUserInputOptionStable,
     onChangeActivePendingUserInputCustomAnswer,
+    onChangeActivePendingUserInputNote: onChangeActivePendingUserInputNoteStable,
     onAdvanceActivePendingUserInput,
     onAdvanceActivePendingUserInputStable,
     onPreviousActivePendingUserInputQuestion: onPreviousActivePendingUserInputQuestionStable,

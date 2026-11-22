@@ -37,12 +37,14 @@ const isCustomCompanion = Schema.is(
 const questionId = /^q\d+$/;
 const companionSuffix = "_custom";
 
-// Intake appends file references to a user's answer; keep them with the custom text.
+// Clients append a note, and intake file references, to a user's answer; keep them with the custom text.
 const splitAttachments = (value: string) => {
   const marker = value.indexOf("\n\n");
   if (marker < 0) return undefined;
   const suffix = value.slice(marker);
-  if (!/^\n\nAttached (?:image|file) "(?:\\.|[^"\\\r\n])*": "/.test(suffix)) return undefined;
+  if (!/^\n\n(?:Note: |Attached (?:image|file) "(?:\\.|[^"\\\r\n])*": ")/.test(suffix)) {
+    return undefined;
+  }
   return { prefix: value.slice(0, marker), suffix };
 };
 

@@ -26,7 +26,7 @@ const prompt: PendingUserInput = {
   ],
 };
 
-it.each<{ focus: string; control: ReactNode; toggles: boolean }>([
+it.each<{ focus: string; control: ReactNode; toggles: boolean; focusLabel?: string }>([
   { focus: "a page button", control: <button type="button" aria-label="Focused" />, toggles: true },
   {
     focus: "a dialog",
@@ -85,9 +85,15 @@ it.each<{ focus: string; control: ReactNode; toggles: boolean }>([
     ),
     toggles: false,
   },
+  {
+    focus: "the answer's note box",
+    control: null,
+    toggles: false,
+    focusLabel: "Note for this answer",
+  },
 ])(
   "digit shortcut with focus in $focus toggles an option: $toggles",
-  async ({ control, toggles }) => {
+  async ({ control, toggles, focusLabel = "Focused" }) => {
     const onToggleOption = vi.fn();
     await using screen = await render(
       <>
@@ -100,16 +106,51 @@ it.each<{ focus: string; control: ReactNode; toggles: boolean }>([
           answers={{}}
           questionIndex={0}
           onToggleOption={onToggleOption}
+          onChangeNote={vi.fn()}
           onAdvance={vi.fn()}
           onDismiss={vi.fn()}
         />
       </>,
     );
     await expect.element(screen.getByText("Incremental")).toBeVisible();
-    screen.getByLabelText("Focused").element().focus();
+    screen.getByLabelText(focusLabel).element().focus();
 
     await userEvent.keyboard("1");
 
     expect(onToggleOption.mock.calls).toEqual(toggles ? [["question", "Incremental"]] : []);
   },
 );
+
+it("types digits into the note box and submits it with Enter or Mod+Enter", async () => {
+  const onToggleOption = vi.fn();
+  const onChangeNote = vi.fn();
+  const onAdvance = vi.fn();
+  await using screen = await render(
+    <ComposerPendingUserInputPanel
+      pendingUserInputs={[prompt]}
+      cwd={undefined}
+      threadRef={threadRef}
+      respondingRequestIds={[]}
+      answers={{ question: { selectedOptionValues: ["Incremental"] } }}
+      questionIndex={0}
+      onToggleOption={onToggleOption}
+      onChangeNote={onChangeNote}
+      onAdvance={onAdvance}
+      onDismiss={vi.fn()}
+    />,
+  );
+
+  await userEvent.click(screen.getByLabelText("Note for this answer"));
+  await userEvent.keyboard("12");
+  await userEvent.keyboard("{Shift>}{Enter}{/Shift}");
+  expect(onAdvance).not.toHaveBeenCalled();
+  await userEvent.keyboard("{Enter}");
+  await userEvent.keyboard("{ControlOrMeta>}{Enter}{/ControlOrMeta}");
+
+  expect(onToggleOption).not.toHaveBeenCalled();
+  expect(onChangeNote.mock.calls).toEqual([
+    ["question", "1"],
+    ["question", "2"],
+  ]);
+  expect(onAdvance).toHaveBeenCalledTimes(2);
+});

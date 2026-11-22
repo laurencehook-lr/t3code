@@ -5,6 +5,7 @@ import {
   isPendingUserInputOptionSelected,
   resolvePendingUserInputAnswer,
   setPendingUserInputCustomAnswer,
+  setPendingUserInputNote,
   togglePendingUserInputOptionSelection,
 } from "./pendingUserInput.ts";
 
@@ -176,6 +177,66 @@ const compatQuestion = {
   options: [{ label: "Keep current envelope", description: "Preserve current wire format" }],
   multiSelect: false,
 } as const;
+
+describe("setPendingUserInputNote", () => {
+  const multiSelectQuestion = { ...singleSelectQuestion, multiSelect: true };
+
+  it("sends the exact option with the note, and drops a blank note", () => {
+    const selected = togglePendingUserInputOptionSelection(
+      singleSelectQuestion,
+      setPendingUserInputNote(singleSelectQuestion, undefined, "  keep the v1 API  "),
+      "Node.js",
+    );
+    expect(resolvePendingUserInputAnswer(singleSelectQuestion, selected)).toBe(
+      "Node.js\n\nNote: keep the v1 API",
+    );
+    expect(
+      resolvePendingUserInputAnswer(
+        singleSelectQuestion,
+        setPendingUserInputNote(singleSelectQuestion, selected, " \n\t"),
+      ),
+    ).toBe("Node.js");
+  });
+
+  it("appends the note after every selected option of a multi-select", () => {
+    const first = togglePendingUserInputOptionSelection(multiSelectQuestion, undefined, "Node.js");
+    const noted = setPendingUserInputNote(multiSelectQuestion, first, "only on macOS");
+    const both = togglePendingUserInputOptionSelection(
+      multiSelectQuestion,
+      noted,
+      "Orchestration-first",
+    );
+    expect(buildPendingUserInputAnswers([multiSelectQuestion], { scope: both })).toEqual({
+      scope: ["Node.js", "Orchestration-first", "Note: only on macOS"],
+    });
+  });
+
+  it("leaves a custom answer and an options-only question unchanged", () => {
+    const noted = setPendingUserInputNote(singleSelectQuestion, undefined, "ignored");
+    expect(
+      resolvePendingUserInputAnswer(
+        singleSelectQuestion,
+        setPendingUserInputCustomAnswer(singleSelectQuestion, noted, "Rust instead"),
+      ),
+    ).toBe("Rust instead");
+    expect(resolvePendingUserInputAnswer(singleSelectQuestion, noted)).toBeNull();
+    expect(setPendingUserInputNote(nativeChoiceQuestion, undefined, "caveat")).toEqual({});
+    const message = { ...singleSelectQuestion, initialAnswer: "Proposed message" };
+    expect(
+      resolvePendingUserInputAnswer(message, {
+        customAnswer: "Proposed message",
+        note: "ignored",
+      }),
+    ).toBe("Proposed message");
+    expect(setPendingUserInputNote(message, undefined, "caveat")).toEqual({});
+    expect(
+      resolvePendingUserInputAnswer(nativeChoiceQuestion, {
+        selectedOptionValues: ["second"],
+        note: "stale",
+      }),
+    ).toBe("second");
+  });
+});
 
 describe("buildPendingUserInputAnswers", () => {
   it("returns a canonical answer map for complete prompts", () => {

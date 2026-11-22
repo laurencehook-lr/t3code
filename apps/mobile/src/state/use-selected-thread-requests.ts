@@ -47,6 +47,7 @@ import { environmentThreadDetails, threadEnvironment } from "./threads";
 import {
   buildPendingUserInputAnswers,
   setPendingUserInputCustomAnswer,
+  setPendingUserInputNote,
   togglePendingUserInputOptionSelection,
   type PendingUserInputDraftAnswer,
 } from "@t3tools/client-runtime/state/pending-user-input";
@@ -70,9 +71,14 @@ function seededDraft(
   return seedUserInputDraftAnswers([question], drafts ?? {})[question.id];
 }
 
-function setUserInputDraftOption(
+function updateUserInputDraft(
   requestKey: string,
   question: ThreadUserInputQuestion,
+  update: (
+    question: ThreadUserInputQuestion,
+    draft: PendingUserInputDraftAnswer | undefined,
+    value: string,
+  ) => PendingUserInputDraftAnswer,
   value: string,
 ): void {
   const current = appAtomRegistry.get(userInputDraftsByRequestKeyAtom);
@@ -80,30 +86,7 @@ function setUserInputDraftOption(
     ...current,
     [requestKey]: {
       ...current[requestKey],
-      [question.id]: togglePendingUserInputOptionSelection(
-        question,
-        seededDraft(current[requestKey], question),
-        value,
-      ),
-    },
-  });
-}
-
-function setUserInputDraftCustomAnswer(
-  requestKey: string,
-  question: ThreadUserInputQuestion,
-  customAnswer: string,
-): void {
-  const current = appAtomRegistry.get(userInputDraftsByRequestKeyAtom);
-  appAtomRegistry.set(userInputDraftsByRequestKeyAtom, {
-    ...current,
-    [requestKey]: {
-      ...current[requestKey],
-      [question.id]: setPendingUserInputCustomAnswer(
-        question,
-        seededDraft(current[requestKey], question),
-        customAnswer,
-      ),
+      [question.id]: update(question, seededDraft(current[requestKey], question), value),
     },
   });
 }
@@ -299,28 +282,34 @@ export function useSelectedThreadRequests() {
       selectedThreadShell.id,
       requestId,
     );
-    setUserInputDraftOption(requestKey, question, value);
+    updateUserInputDraft(requestKey, question, togglePendingUserInputOptionSelection, value);
   };
 
-  const onChangeUserInputCustomAnswer = (
-    requestId: RuntimeRequestId,
-    questionId: string,
-    customAnswer: string,
-  ) => {
-    const question = activePendingUserInputs
-      .find((request) => request.requestId === requestId)
-      ?.questions.find((entry) => entry.id === questionId);
-    if (!selectedThreadShell || !question) {
-      return;
-    }
+  const changeUserInputText =
+    (
+      update: (
+        question: ThreadUserInputQuestion,
+        draft: PendingUserInputDraftAnswer | undefined,
+        value: string,
+      ) => PendingUserInputDraftAnswer,
+    ) =>
+    (requestId: RuntimeRequestId, questionId: string, value: string) => {
+      const question = activePendingUserInputs
+        .find((request) => request.requestId === requestId)
+        ?.questions.find((entry) => entry.id === questionId);
+      if (!selectedThreadShell || !question) {
+        return;
+      }
 
-    const requestKey = userInputDraftKey(
-      selectedThreadShell.environmentId,
-      selectedThreadShell.id,
-      requestId,
-    );
-    setUserInputDraftCustomAnswer(requestKey, question, customAnswer);
-  };
+      const requestKey = userInputDraftKey(
+        selectedThreadShell.environmentId,
+        selectedThreadShell.id,
+        requestId,
+      );
+      updateUserInputDraft(requestKey, question, update, value);
+    };
+  const onChangeUserInputCustomAnswer = changeUserInputText(setPendingUserInputCustomAnswer);
+  const onChangeUserInputNote = changeUserInputText(setPendingUserInputNote);
 
   const onRespondToApproval = async (
     requestId: RuntimeRequestId,
@@ -478,6 +467,7 @@ export function useSelectedThreadRequests() {
     onRespondToApproval,
     onSelectUserInputOption,
     onChangeUserInputCustomAnswer,
+    onChangeUserInputNote,
     onSubmitUserInput,
     onDismissUserInput,
   };

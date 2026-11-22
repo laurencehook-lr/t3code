@@ -11,6 +11,8 @@ export interface PendingUserInputQuestion {
 export interface PendingUserInputDraftAnswer {
   readonly selectedOptionValues?: ReadonlyArray<string>;
   readonly customAnswer?: string;
+  /** A caveat sent with the selected options. A custom answer carries its own text instead. */
+  readonly note?: string;
   readonly attachmentCount?: number;
   readonly attachmentsBlocked?: boolean;
 }
@@ -77,17 +79,50 @@ export function resolvePendingUserInputAnswer(
   }
 
   const selectedOptionValues = normalizeSelectedOptionValues(question, draft?.selectedOptionValues);
+  const note = pendingUserInputNote(question, draft);
   if (question.multiSelect) {
     return selectedOptionValues.length > 0
-      ? selectedOptionValues
+      ? note === null
+        ? selectedOptionValues
+        : [...selectedOptionValues, `Note: ${note}`]
       : (customAnswer ??
           (question.allowCustomAnswer !== false && (draft?.attachmentCount ?? 0) > 0 ? "" : null));
   }
+  const selectedOptionValue = selectedOptionValues[0];
+  if (selectedOptionValue !== undefined && note !== null) {
+    // oxlint-disable-next-line t3code/no-untranslated-copy -- sent to the agent, which reads English
+    return `${selectedOptionValue}\n\nNote: ${note}`;
+  }
   return (
-    selectedOptionValues[0] ??
+    selectedOptionValue ??
     customAnswer ??
     (question.allowCustomAnswer !== false && (draft?.attachmentCount ?? 0) > 0 ? "" : null)
   );
+}
+
+/** Whether the question takes a note beside its options. An edited message carries its own text. */
+export function pendingUserInputAcceptsNote(question: PendingUserInputQuestion): boolean {
+  return (
+    question.allowCustomAnswer !== false &&
+    question.initialAnswer === undefined &&
+    question.options.length > 0
+  );
+}
+
+// The note joins the answer the way attachment paths do, so no provider protocol changes.
+function pendingUserInputNote(
+  question: PendingUserInputQuestion,
+  draft: PendingUserInputDraftAnswer | undefined,
+): string | null {
+  return pendingUserInputAcceptsNote(question) ? normalizeDraftAnswer(draft?.note) : null;
+}
+
+export function setPendingUserInputNote(
+  question: PendingUserInputQuestion,
+  draft: PendingUserInputDraftAnswer | undefined,
+  note: string,
+): PendingUserInputDraftAnswer {
+  return pendingUserInputAcceptsNote(question) ? { ...draft, note } : (draft ?? {});
 }
 
 export function setPendingUserInputCustomAnswer(
@@ -106,6 +141,7 @@ export function setPendingUserInputCustomAnswer(
   return {
     customAnswer,
     ...(selectedOptionValues && selectedOptionValues.length > 0 ? { selectedOptionValues } : {}),
+    ...(draft?.note !== undefined ? { note: draft.note } : {}),
   };
 }
 
@@ -152,12 +188,14 @@ export function togglePendingUserInputOptionSelection(
       ...(nextSelectedOptionValues.length > 0
         ? { selectedOptionValues: nextSelectedOptionValues }
         : {}),
+      ...(draft?.note !== undefined ? { note: draft.note } : {}),
     };
   }
 
   return {
     customAnswer: "",
     selectedOptionValues: [resolvedOptionValue],
+    ...(draft?.note !== undefined ? { note: draft.note } : {}),
   };
 }
 

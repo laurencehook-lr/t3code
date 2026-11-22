@@ -19,7 +19,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { SymbolView } from "../../components/ui/AppSymbol";
-import { AppText as Text } from "../../components/ui/AppText";
+import { AppText as Text, AppTextInput as TextInput } from "../../components/ui/AppText";
 import { ControlPill } from "../../components/ui/ControlPill";
 import { cn } from "../../lib/cn";
 import { resolveMarkdownLinkPresentation } from "../../lib/markdownLinks";
@@ -34,6 +34,7 @@ import {
 import { useLiveThreadLinkLabels } from "../../state/entities";
 import {
   isPendingUserInputOptionSelected,
+  pendingUserInputAcceptsNote,
   type PendingUserInputDraftAnswer,
 } from "@t3tools/client-runtime/state/pending-user-input";
 import type { PendingUserInput } from "../../lib/threadActivity";
@@ -65,6 +66,7 @@ export interface PendingUserInputCardProps {
     questionId: string,
     customAnswer: string,
   ) => void;
+  readonly onChangeNote: (requestId: RuntimeRequestId, questionId: string, note: string) => void;
   readonly onSubmit: () => Promise<unknown>;
   readonly onDismiss: () => Promise<unknown>;
 }
@@ -361,6 +363,24 @@ export function PendingUserInputCard(props: PendingUserInputCardProps) {
                   );
                 })}
               </View>
+              {pendingUserInputAcceptsNote(question) && !draft?.customAnswer?.trim() ? (
+                <TextInput
+                  value={draft?.note ?? ""}
+                  editable={!responseDisabled}
+                  accessibilityLabel={gt("Note for this answer")}
+                  placeholder={
+                    questionCount > 1 && question === props.pendingUserInput.questions.at(-1)
+                      ? gt("Add a note for this answer or the whole card (optional)")
+                      : gt("Add a note or caveat (optional)")
+                  }
+                  onChangeText={(note) =>
+                    props.onChangeNote(props.pendingUserInput.requestId, question.id, note)
+                  }
+                  onFocus={() => props.onInputFocusChange?.(true)}
+                  onBlur={() => props.onInputFocusChange?.(false)}
+                  className="min-h-11 rounded-2xl border border-input-border bg-input px-3.5 py-2.5 font-sans text-sm text-foreground"
+                />
+              ) : null}
               {question.allowCustomAnswer !== false ? (
                 <QuestionAttachments
                   key={`${props.pendingUserInput.requestId}:${question.id}`}

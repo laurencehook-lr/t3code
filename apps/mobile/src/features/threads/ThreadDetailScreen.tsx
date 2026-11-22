@@ -330,6 +330,11 @@ export interface ThreadDetailScreenProps {
     questionId: string,
     customAnswer: string,
   ) => void;
+  readonly onChangeUserInputNote: (
+    requestId: RuntimeRequestId,
+    questionId: string,
+    note: string,
+  ) => void;
   readonly onSubmitUserInput: () => Promise<unknown>;
   readonly onDismissUserInput: () => Promise<unknown>;
   readonly showContent?: boolean;
@@ -1862,6 +1867,7 @@ function ThreadDetailBody(
                             respondingUserInputId={props.respondingUserInputId}
                             onSelectOption={props.onSelectUserInputOption}
                             onChangeCustomAnswer={props.onChangeUserInputCustomAnswer}
+                            onChangeNote={props.onChangeUserInputNote}
                             onSubmit={props.onSubmitUserInput}
                             onDismiss={props.onDismissUserInput}
                           />
